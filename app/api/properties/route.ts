@@ -1,15 +1,19 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
+import type { Property } from "@/lib/types"
 
-export const revalidate = 3600 // Revalidate every hour
+export const revalidate = 0 // Disable revalidation to always fetch fresh data
 
 export async function GET(request: NextRequest) {
   try {
-    console.log("Fetching properties...")
+    console.log("=== Properties API Debug ===")
+    console.log("Request URL:", request.url)
     console.log("Environment check:", {
       hasDatabaseUrl: !!process.env.DATABASE_URL,
       hasDirectUrl: !!process.env.DIRECT_URL,
-      nodeEnv: process.env.NODE_ENV
+      nodeEnv: process.env.NODE_ENV,
+      databaseUrl: process.env.DATABASE_URL?.substring(0, 20) + "...", // Log first 20 chars for safety
+      directUrl: process.env.DIRECT_URL?.substring(0, 20) + "..." // Log first 20 chars for safety
     })
 
     // Test database connection
@@ -17,11 +21,16 @@ export async function GET(request: NextRequest) {
       console.log("Attempting database connection...")
       await db.$connect()
       console.log("Database connection successful")
+      
+      // Test a simple query
+      const count = await db.property.count()
+      console.log("Current property count:", count)
     } catch (error) {
       console.error("Database connection failed:", error)
       return NextResponse.json({ 
         error: "Database connection failed", 
-        details: error instanceof Error ? error.message : String(error)
+        details: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
       }, { status: 500 })
     }
 
@@ -59,34 +68,48 @@ export async function GET(request: NextRequest) {
 
     console.log("Query parameters:", { limit, page, where })
 
-    const [properties, total] = await Promise.all([
-      db.property.findMany({
-        where,
-        take: limit,
-        skip: (page - 1) * limit,
-        orderBy: { createdAt: "desc" },
-      }),
-      db.property.count({ where }),
-    ])
+    try {
+      const [properties, total] = await Promise.all([
+        db.property.findMany({
+          where,
+          take: limit,
+          skip: (page - 1) * limit,
+          orderBy: { createdAt: "desc" },
+        }),
+        db.property.count({ where }),
+      ])
 
-    console.log(`Found ${properties.length} properties out of ${total} total`)
+      console.log(`Found ${properties.length} properties out of ${total} total`)
+      console.log("Properties:", properties.map((p: Property) => ({ 
+        id: p.id, 
+        title: p.title,
+        type: p.type,
+        featured: p.featured
+      })))
 
-    const response = NextResponse.json({
-      properties,
-      total,
+      const response = NextResponse.json({
+        properties,
+        total,
         page,
-      totalPages: Math.ceil(total / limit),
-    })
+        totalPages: Math.ceil(total / limit),
+      })
 
-    // Add cache control headers
-    response.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400')
+      // Disable caching to always get fresh data
+      response.headers.set('Cache-Control', 'no-store, must-revalidate')
+      response.headers.set('Pragma', 'no-cache')
+      response.headers.set('Expires', '0')
 
-    return response
+      return response
+    } catch (error) {
+      console.error("Error fetching properties from database:", error)
+      throw error
+    }
   } catch (error) {
-    console.error("Error fetching properties:", error)
+    console.error("Error in properties API:", error)
     return NextResponse.json({ 
       error: "Failed to fetch properties",
-      details: error instanceof Error ? error.message : String(error)
+      details: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined
     }, { status: 500 })
   } finally {
     await db.$disconnect()

@@ -31,6 +31,7 @@ export default function PropertyListings({ type }: PropertyListingsProps) {
   })
 
   useEffect(() => {
+    console.log("PropertyListings: Component mounted")
     fetchProperties()
     // Refresh properties every 30 seconds
     const interval = setInterval(fetchProperties, 30000)
@@ -38,6 +39,7 @@ export default function PropertyListings({ type }: PropertyListingsProps) {
   }, [filters, currentPage, type])
 
   const fetchProperties = async () => {
+    console.log("PropertyListings: Fetching properties with filters:", filters)
     setLoading(true)
     try {
       const params = new URLSearchParams({
@@ -62,20 +64,34 @@ export default function PropertyListings({ type }: PropertyListingsProps) {
         params.set("bedrooms", filters.bedrooms.toString())
       }
 
-      const response = await fetch(`/api/properties?${params}`, {
+      const url = `/api/properties?${params}`
+      console.log("PropertyListings: Fetching from URL:", url)
+
+      const response = await fetch(url, {
         cache: 'no-store',
         headers: {
           'Cache-Control': 'no-cache',
           'Pragma': 'no-cache'
         }
       })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
       const data = await response.json()
-      console.log("Fetched properties:", data.properties)
+      console.log("PropertyListings: Received data:", data)
       
-      setProperties(data.properties || [])
+      if (!data.properties) {
+        console.error("PropertyListings: No properties in response data")
+        setProperties([])
+        return
+      }
+
+      setProperties(data.properties)
       setTotalPages(data.pagination?.pages || 1)
     } catch (error) {
-      console.error("Error fetching properties:", error)
+      console.error("PropertyListings: Error fetching properties:", error)
       setProperties([])
     } finally {
       setLoading(false)

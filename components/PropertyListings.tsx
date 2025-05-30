@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { useSearchParams } from "next/navigation"
 import PropertyCard from "@/components/PropertyCard"
 import { PropertyFilters } from "@/components/PropertyFilters"
@@ -22,14 +22,16 @@ export default function PropertyListings({ type }: PropertyListingsProps) {
   const [totalPages, setTotalPages] = useState(1)
   const propertiesPerPage = 8
 
-  const [filters, setFilters] = useState<SearchFilters>({
+  const initialFilters = useMemo(() => ({
     type: type,
     location: searchParams.get("location") || "all",
     propertyType: searchParams.get("propertyType") || "all",
     minPrice: searchParams.get("minPrice") ? Number(searchParams.get("minPrice")) : 0,
     maxPrice: searchParams.get("maxPrice") ? Number(searchParams.get("maxPrice")) : 0,
     bedrooms: searchParams.get("bedrooms") ? Number(searchParams.get("bedrooms")) : 0,
-  })
+  }), [type, searchParams])
+
+  const [filters, setFilters] = useState<SearchFilters>(initialFilters)
 
   const fetchProperties = useCallback(async () => {
     console.log("PropertyListings: Fetching properties with filters:", filters)
@@ -99,17 +101,17 @@ export default function PropertyListings({ type }: PropertyListingsProps) {
     } finally {
       setLoading(false)
     }
-  }, [filters, currentPage, type, propertiesPerPage])
+  }, [currentPage, type, propertiesPerPage, filters.location, filters.propertyType, filters.minPrice, filters.maxPrice, filters.bedrooms])
 
   useEffect(() => {
     console.log("PropertyListings: Fetching properties...")
     fetchProperties()
   }, [fetchProperties])
 
-  const handleFiltersChange = (newFilters: SearchFilters) => {
+  const handleFiltersChange = useCallback((newFilters: SearchFilters) => {
     setFilters(newFilters)
     setCurrentPage(1)
-  }
+  }, [])
 
   if (loading) {
     return (

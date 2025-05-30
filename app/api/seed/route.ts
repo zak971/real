@@ -60,10 +60,24 @@ const sampleProperties = [
 
 export async function POST(request: NextRequest) {
   try {
+    console.log("Starting database seeding...")
+    
+    // Test database connection
+    try {
+      await db.$connect()
+      console.log("Database connection successful")
+    } catch (error) {
+      console.error("Database connection failed:", error)
+      return NextResponse.json({ error: "Database connection failed" }, { status: 500 })
+    }
+
     // Clear existing properties
+    console.log("Clearing existing properties...")
     await db.property.deleteMany()
+    console.log("Existing properties cleared")
 
     // Create sample properties
+    console.log("Creating sample properties...")
     const properties = await Promise.all(
       sampleProperties.map((property) =>
         db.property.create({
@@ -71,6 +85,7 @@ export async function POST(request: NextRequest) {
         })
       )
     )
+    console.log(`Created ${properties.length} properties`)
 
     return NextResponse.json({
       message: "Database seeded successfully",
@@ -79,6 +94,11 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error("Error seeding database:", error)
-    return NextResponse.json({ error: "Failed to seed database" }, { status: 500 })
+    return NextResponse.json({ 
+      error: error instanceof Error ? error.message : "Failed to seed database",
+      details: error
+    }, { status: 500 })
+  } finally {
+    await db.$disconnect()
   }
 }

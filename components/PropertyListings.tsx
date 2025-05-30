@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useSearchParams } from "next/navigation"
 import PropertyCard from "@/components/PropertyCard"
 import { PropertyFilters } from "@/components/PropertyFilters"
@@ -16,6 +16,7 @@ export default function PropertyListings({ type }: PropertyListingsProps) {
   const searchParams = useSearchParams()
   const [properties, setProperties] = useState<Property[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
@@ -30,17 +31,11 @@ export default function PropertyListings({ type }: PropertyListingsProps) {
     bedrooms: searchParams.get("bedrooms") ? Number(searchParams.get("bedrooms")) : 0,
   })
 
-  useEffect(() => {
-    console.log("PropertyListings: Component mounted")
-    fetchProperties()
-    // Refresh properties every 30 seconds
-    const interval = setInterval(fetchProperties, 30000)
-    return () => clearInterval(interval)
-  }, [filters, currentPage, type])
-
-  const fetchProperties = async () => {
+  const fetchProperties = useCallback(async () => {
     console.log("PropertyListings: Fetching properties with filters:", filters)
     setLoading(true)
+    setError(null)
+    
     try {
       const params = new URLSearchParams({
         page: currentPage.toString(),
@@ -76,7 +71,13 @@ export default function PropertyListings({ type }: PropertyListingsProps) {
       })
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+        const errorData = await response.json().catch(() => null)
+        console.error("PropertyListings: API error response:", {
+          status: response.status,
+          statusText: response.statusText,
+          errorData
+        })
+        throw new Error(errorData?.error || `HTTP error! status: ${response.status}`)
       }
 
       const data = await response.json()
@@ -84,19 +85,26 @@ export default function PropertyListings({ type }: PropertyListingsProps) {
       
       if (!data.properties) {
         console.error("PropertyListings: No properties in response data")
+        setError("No properties found in the response")
         setProperties([])
         return
       }
 
       setProperties(data.properties)
-      setTotalPages(data.pagination?.pages || 1)
+      setTotalPages(data.totalPages || 1)
     } catch (error) {
       console.error("PropertyListings: Error fetching properties:", error)
+      setError(error instanceof Error ? error.message : "Failed to fetch properties")
       setProperties([])
     } finally {
       setLoading(false)
     }
-  }
+  }, [filters, currentPage, type, propertiesPerPage])
+
+  useEffect(() => {
+    console.log("PropertyListings: Fetching properties...")
+    fetchProperties()
+  }, [fetchProperties])
 
   const handleFiltersChange = (newFilters: SearchFilters) => {
     setFilters(newFilters)
@@ -109,6 +117,23 @@ export default function PropertyListings({ type }: PropertyListingsProps) {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading properties...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="text-center">
+          <h3 className="text-xl font-semibold text-red-600 mb-4">Error Loading Properties</h3>
+          <p className="text-gray-600 mb-8">{error}</p>
+          <Button
+            className={buttonVariants({ variant: "default" })}
+            onClick={fetchProperties}
+          >
+            Try Again
+          </Button>
         </div>
       </div>
     )

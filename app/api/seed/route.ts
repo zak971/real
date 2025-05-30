@@ -61,14 +61,27 @@ const sampleProperties = [
 export async function POST(request: NextRequest) {
   try {
     console.log("Starting database seeding...")
+    console.log("Environment check:", {
+      hasDatabaseUrl: !!process.env.DATABASE_URL,
+      hasDirectUrl: !!process.env.DIRECT_URL,
+      nodeEnv: process.env.NODE_ENV
+    })
     
     // Test database connection
     try {
+      console.log("Attempting database connection...")
       await db.$connect()
       console.log("Database connection successful")
+      
+      // Test a simple query
+      const count = await db.property.count()
+      console.log("Current property count:", count)
     } catch (error) {
       console.error("Database connection failed:", error)
-      return NextResponse.json({ error: "Database connection failed" }, { status: 500 })
+      return NextResponse.json({ 
+        error: "Database connection failed", 
+        details: error instanceof Error ? error.message : String(error)
+      }, { status: 500 })
     }
 
     // Clear existing properties

@@ -5,33 +5,62 @@ import type { Property } from "@/lib/types"
 export const revalidate = 0 // Disable revalidation to always fetch fresh data
 
 export async function GET(request: NextRequest) {
-  try {
-    console.log("=== Properties API Debug ===")
-    console.log("Request URL:", request.url)
-    console.log("Environment check:", {
-      hasDatabaseUrl: !!process.env.DATABASE_URL,
-      hasDirectUrl: !!process.env.DIRECT_URL,
-      nodeEnv: process.env.NODE_ENV,
-      databaseUrl: process.env.DATABASE_URL?.substring(0, 20) + "...", // Log first 20 chars for safety
-      directUrl: process.env.DIRECT_URL?.substring(0, 20) + "..." // Log first 20 chars for safety
-    })
+  console.log("=== Properties API Debug ===")
+  console.log("Request URL:", request.url)
+  console.log("Environment check:", {
+    hasDatabaseUrl: !!process.env.DATABASE_URL,
+    hasDirectUrl: !!process.env.DIRECT_URL,
+    nodeEnv: process.env.NODE_ENV,
+    databaseUrl: process.env.DATABASE_URL?.substring(0, 20) + "...", // Log first 20 chars for safety
+    directUrl: process.env.DIRECT_URL?.substring(0, 20) + "..." // Log first 20 chars for safety
+  })
 
+  try {
     // Test database connection
     try {
       console.log("Attempting database connection...")
+      console.log("Connection details:", {
+        host: process.env.DATABASE_URL?.split("@")[1]?.split("/")[0],
+        database: process.env.DATABASE_URL?.split("/").pop()?.split("?")[0],
+        sslMode: process.env.DATABASE_URL?.includes("sslmode=require") ? "required" : "not required"
+      })
+      
       await db.$connect()
       console.log("Database connection successful")
       
       // Test a simple query
       const count = await db.property.count()
       console.log("Current property count:", count)
+
+      // Test a more complex query to verify full functionality
+      const testProperty = await db.property.findFirst({
+        select: {
+          id: true,
+          title: true,
+          type: true,
+          createdAt: true
+        }
+      })
+      console.log("Test property query result:", testProperty)
     } catch (error) {
       console.error("Database connection failed:", error)
+      console.error("Error details:", {
+        name: error instanceof Error ? error.name : "Unknown",
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      })
       return NextResponse.json({ 
         error: "Database connection failed", 
         details: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined
-      }, { status: 500 })
+      }, { 
+        status: 500,
+        headers: {
+          'Cache-Control': 'no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      })
     }
 
     const searchParams = request.nextUrl.searchParams
@@ -48,16 +77,16 @@ export async function GET(request: NextRequest) {
     const where: any = {}
 
     if (type) where.type = type
-    if (propertyType) where.propertyType = propertyType
-    if (location) where.location = { contains: location, mode: "insensitive" }
+    if (propertyType && propertyType !== "all") where.propertyType = propertyType
+    if (location && location !== "all") where.location = { contains: location, mode: "insensitive" }
     if (minPrice || maxPrice) {
       where.price = {}
-      if (minPrice) where.price.gte = parseInt(minPrice)
-      if (maxPrice) where.price.lte = parseInt(maxPrice)
+      if (minPrice && parseInt(minPrice) > 0) where.price.gte = parseInt(minPrice)
+      if (maxPrice && parseInt(maxPrice) > 0) where.price.lte = parseInt(maxPrice)
     }
 
     // Bedrooms filter
-    if (bedrooms && !isNaN(parseInt(bedrooms))) {
+    if (bedrooms && !isNaN(parseInt(bedrooms)) && parseInt(bedrooms) > 0) {
       where.bedrooms = { gte: parseInt(bedrooms) }
     }
 
@@ -102,7 +131,18 @@ export async function GET(request: NextRequest) {
       return response
     } catch (error) {
       console.error("Error fetching properties from database:", error)
-      throw error
+      return NextResponse.json({ 
+        error: "Failed to fetch properties from database",
+        details: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      }, { 
+        status: 500,
+        headers: {
+          'Cache-Control': 'no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      })
     }
   } catch (error) {
     console.error("Error in properties API:", error)
@@ -110,7 +150,14 @@ export async function GET(request: NextRequest) {
       error: "Failed to fetch properties",
       details: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined
-    }, { status: 500 })
+    }, { 
+      status: 500,
+      headers: {
+        'Cache-Control': 'no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    })
   } finally {
     await db.$disconnect()
   }

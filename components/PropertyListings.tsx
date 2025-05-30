@@ -73,12 +73,8 @@ export default function PropertyListings({ type }: PropertyListingsProps) {
       })
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => null)
-        console.error("PropertyListings: API error response:", {
-          status: response.status,
-          statusText: response.statusText,
-          errorData
-        })
+        const errorData = await response.json().catch(() => ({}))
+        console.error("PropertyListings: API error response:", errorData)
         throw new Error(errorData?.error || `HTTP error! status: ${response.status}`)
       }
 

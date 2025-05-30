@@ -8,17 +8,21 @@ import Footer from "@/components/Footer"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://www.goarealestate.in"), // ✅ Replace with your real domain
   title: "Goa Real Estate | Premium Properties in Goa",
   description:
     "Find your dream property in Goa. Luxury villas, apartments, and houses for sale and rent. Expert real estate services for NRI and local clients.",
-  keywords: "Goa real estate, properties in Goa, villas for sale, apartments for rent, NRI property investment",
+  keywords:
+    "Goa real estate, properties in Goa, villas for sale, apartments for rent, NRI property investment",
   openGraph: {
     title: "Goa Real Estate | Premium Properties in Goa",
-    description: "Find your dream property in Goa. Luxury villas, apartments, and houses for sale and rent.",
+    description:
+      "Find your dream property in Goa. Luxury villas, apartments, and houses for sale and rent.",
     images: ["/placeholder.svg?height=630&width=1200"],
   },
-  generator: 'v0.dev'
+  generator: "v0.dev",
 }
+
 
 export default function RootLayout({
   children,

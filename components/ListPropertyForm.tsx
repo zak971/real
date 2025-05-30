@@ -57,6 +57,7 @@ interface FormErrors {
   location?: string;
   images?: string;
   amenities?: string;
+  submit?: string;
 }
 
 type ButtonVariant = "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
@@ -83,15 +84,15 @@ export default function ListPropertyForm() {
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {}
 
-    if (!formData.title) newErrors.title = "Title is required"
-    if (!formData.description) newErrors.description = "Description is required"
-    if (!formData.price) newErrors.price = "Price is required"
+    if (!formData.title.trim()) newErrors.title = "Title is required"
+    if (!formData.description.trim()) newErrors.description = "Description is required"
+    if (!formData.price || formData.price <= 0) newErrors.price = "Price must be greater than 0"
     if (!formData.propertyType) newErrors.propertyType = "Property type is required"
     if (formData.propertyType !== "land") {
-      if (!formData.bedrooms) newErrors.bedrooms = "Bedrooms is required"
-      if (!formData.bathrooms) newErrors.bathrooms = "Bathrooms is required"
+      if (!formData.bedrooms || formData.bedrooms <= 0) newErrors.bedrooms = "Bedrooms must be greater than 0"
+      if (!formData.bathrooms || formData.bathrooms <= 0) newErrors.bathrooms = "Bathrooms must be greater than 0"
     }
-    if (!formData.area) newErrors.area = "Area is required"
+    if (!formData.area || formData.area <= 0) newErrors.area = "Area must be greater than 0"
     if (!formData.location) newErrors.location = "Location is required"
     if (formData.images.length === 0) newErrors.images = "At least one image is required"
 
@@ -105,8 +106,10 @@ export default function ListPropertyForm() {
     if (!validateForm()) return
   
     setIsSubmitting(true)
+    setErrors({})
   
     try {
+      console.log("Submitting form data:", formData)
       const response = await fetch("/api/property-submission", {
         method: "POST",
         headers: {
@@ -114,6 +117,8 @@ export default function ListPropertyForm() {
         },
         body: JSON.stringify(formData),
       })
+  
+      const data = await response.json()
   
       if (response.ok) {
         setIsSubmitted(true)
@@ -132,11 +137,16 @@ export default function ListPropertyForm() {
           images: [],
         })
       } else {
-        alert("Failed to submit property. Please try again.")
+        console.error("Submission failed:", data)
+        setErrors({
+          submit: data.error || "Failed to submit property. Please try again."
+        })
       }
     } catch (error) {
       console.error("Error submitting property:", error)
-      alert("Failed to submit property. Please try again.")
+      setErrors({
+        submit: "Failed to submit property. Please try again."
+      })
     } finally {
       setIsSubmitting(false)
     }
@@ -192,6 +202,11 @@ export default function ListPropertyForm() {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
+          {errors.submit && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-md">
+              <p className="text-red-600">{errors.submit}</p>
+            </div>
+          )}
           {/* Owner Information */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>

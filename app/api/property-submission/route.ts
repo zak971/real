@@ -35,29 +35,32 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json()
+    console.log("Received submission data:", data)
 
     const submission = await db.propertySubmission.create({
       data: {
-        ownerName: data.ownerName,
-        email: data.email,
-        phone: data.phone,
-        propertyTitle: data.propertyTitle,
+        propertyTitle: data.title,
         description: data.description,
         location: data.location,
         type: data.type,
         propertyType: data.propertyType,
-        bedrooms: parseInt(data.bedrooms),
-        bathrooms: parseInt(data.bathrooms),
-        area: parseFloat(data.area),
-        price: parseFloat(data.price),
+        bedrooms: parseInt(data.bedrooms) || 0,
+        bathrooms: parseInt(data.bathrooms) || 0,
+        area: parseFloat(data.area) || 0,
+        price: parseFloat(data.price) || 0,
         amenities: data.amenities || [],
+        images: data.images || [],
         status: "pending",
       },
     })
 
+    console.log("Created submission:", submission)
     return NextResponse.json(submission, { status: 201 })
   } catch (error) {
     console.error("Error creating submission:", error)
-    return NextResponse.json({ error: "Failed to create submission" }, { status: 500 })
+    return NextResponse.json({ 
+      error: "Failed to create submission",
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 })
   }
 }

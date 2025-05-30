@@ -141,20 +141,43 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-4 flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-            <p className="text-sm text-gray-600">Manage properties and user submissions</p>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+          <div className="flex gap-4">
+            <Button
+              onClick={seedDatabase}
+              disabled={isSeeding}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {isSeeding ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Seeding...
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Seed Database
+                </>
+              )}
+            </Button>
+            <Button
+              onClick={() => setShowForm(true)}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Property
+            </Button>
+            <Button
+              onClick={handleLogout}
+              variant="outline"
+              className="text-red-600 border-red-600 hover:bg-red-50"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Logout
+            </Button>
           </div>
-          <Button
-            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-            onClick={handleLogout}
-          >
-            <LogOut className="h-4 w-4 mr-2" />
-            Logout
-          </Button>
         </div>
   
         <Tabs defaultValue="properties" className="space-y-4">
@@ -172,25 +195,6 @@ export default function AdminDashboard() {
           <TabsContent value="properties" className="space-y-4">
             {/* Actions */}
             <div className="flex justify-between items-center">
-              <div className="flex space-x-3">
-                <Button onClick={() => setShowForm(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Property
-                </Button>
-                <Button 
-                  onClick={seedDatabase}
-                  disabled={isSeeding}
-                >
-                  {isSeeding ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Seeding...
-                    </>
-                  ) : (
-                    "Seed Sample Data"
-                  )}
-                </Button>
-              </div>
               <div className="text-sm text-gray-600">Total Properties: {properties.length}</div>
             </div>
   

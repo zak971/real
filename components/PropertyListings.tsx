@@ -32,6 +32,9 @@ export default function PropertyListings({ type }: PropertyListingsProps) {
 
   useEffect(() => {
     fetchProperties()
+    // Refresh properties every 30 seconds
+    const interval = setInterval(fetchProperties, 30000)
+    return () => clearInterval(interval)
   }, [filters, currentPage, type])
 
   const fetchProperties = async () => {
@@ -59,8 +62,15 @@ export default function PropertyListings({ type }: PropertyListingsProps) {
         params.set("bedrooms", filters.bedrooms.toString())
       }
 
-      const response = await fetch(`/api/properties?${params}`)
+      const response = await fetch(`/api/properties?${params}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      })
       const data = await response.json()
+      console.log("Fetched properties:", data.properties)
       
       setProperties(data.properties || [])
       setTotalPages(data.pagination?.pages || 1)

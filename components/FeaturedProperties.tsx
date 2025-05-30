@@ -12,12 +12,22 @@ export default function FeaturedProperties() {
 
   useEffect(() => {
     fetchFeaturedProperties()
+    // Refresh properties every 30 seconds
+    const interval = setInterval(fetchFeaturedProperties, 30000)
+    return () => clearInterval(interval)
   }, [])
 
   const fetchFeaturedProperties = async () => {
     try {
-      const response = await fetch("/api/properties?featured=true&limit=6")
+      const response = await fetch("/api/properties?featured=true&limit=6", {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      })
       const data = await response.json()
+      console.log("Fetched properties:", data.properties)
       setFeaturedProperties(data.properties || [])
     } catch (error) {
       console.error("Error fetching featured properties:", error)

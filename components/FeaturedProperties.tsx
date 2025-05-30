@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import PropertyCard from "@/components/PropertyCard"
 import type { Property } from "@/lib/types"
@@ -10,14 +10,7 @@ export default function FeaturedProperties() {
   const [featuredProperties, setFeaturedProperties] = useState<Property[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    fetchFeaturedProperties()
-    // Refresh properties every 30 seconds
-    const interval = setInterval(fetchFeaturedProperties, 30000)
-    return () => clearInterval(interval)
-  }, [])
-
-  const fetchFeaturedProperties = async () => {
+  const fetchFeaturedProperties = useCallback(async () => {
     try {
       const response = await fetch("/api/properties?featured=true&limit=6", {
         cache: 'no-store',
@@ -35,7 +28,11 @@ export default function FeaturedProperties() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    fetchFeaturedProperties()
+  }, [fetchFeaturedProperties])
 
   if (loading) {
     return (

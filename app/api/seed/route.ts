@@ -64,7 +64,9 @@ export async function POST(request: NextRequest) {
     console.log("Environment check:", {
       hasDatabaseUrl: !!process.env.DATABASE_URL,
       hasDirectUrl: !!process.env.DIRECT_URL,
-      nodeEnv: process.env.NODE_ENV
+      nodeEnv: process.env.NODE_ENV,
+      databaseUrl: process.env.DATABASE_URL?.substring(0, 20) + "...", // Log first 20 chars for safety
+      directUrl: process.env.DIRECT_URL?.substring(0, 20) + "..." // Log first 20 chars for safety
     })
     
     // Test database connection
@@ -80,17 +82,28 @@ export async function POST(request: NextRequest) {
       console.error("Database connection failed:", error)
       return NextResponse.json({ 
         error: "Database connection failed", 
-        details: error instanceof Error ? error.message : String(error)
+        details: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
       }, { status: 500 })
     }
 
     // Clear existing properties
     console.log("Clearing existing properties...")
+    try {
     await db.property.deleteMany()
-    console.log("Existing properties cleared")
+      console.log("Existing properties cleared")
+    } catch (error) {
+      console.error("Error clearing properties:", error)
+      return NextResponse.json({ 
+        error: "Failed to clear existing properties",
+        details: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      }, { status: 500 })
+    }
 
     // Create sample properties
     console.log("Creating sample properties...")
+    try {
     const properties = await Promise.all(
       sampleProperties.map((property) =>
         db.property.create({
@@ -98,18 +111,26 @@ export async function POST(request: NextRequest) {
         })
       )
     )
-    console.log(`Created ${properties.length} properties`)
-
+      console.log(`Created ${properties.length} properties`)
     return NextResponse.json({
       message: "Database seeded successfully",
       count: properties.length,
       properties,
     })
+    } catch (error) {
+      console.error("Error creating properties:", error)
+      return NextResponse.json({ 
+        error: "Failed to create properties",
+        details: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      }, { status: 500 })
+    }
   } catch (error) {
     console.error("Error seeding database:", error)
     return NextResponse.json({ 
       error: error instanceof Error ? error.message : "Failed to seed database",
-      details: error
+      details: error,
+      stack: error instanceof Error ? error.stack : undefined
     }, { status: 500 })
   } finally {
     await db.$disconnect()

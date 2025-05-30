@@ -1,42 +1,36 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
   previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL") // Used for direct connection to Neon
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Property {
-  id          String   @id @default(cuid())
-  title       String
-  description String
-  price       Float
-  location    String
-  type        String   // "sale" or "rent"
-  propertyType String  // "apartment", "villa", "house", "commercial", "land", "penthouse", "studio", "duplex", "bungalow", "farmhouse", "beach house", "townhouse", "condominium", "office space", "retail space", "warehouse", "industrial"
-  bedrooms    Int
-  bathrooms   Int
-  area        Float
-  images      String[] // Array of image URLs
-  amenities   String[] // Array of amenity strings
-  featured    Boolean  @default(false)
-  
-  // Optional media
-  videoUrl    String?
-  floorPlan   String?
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(cuid())
+  title        String
+  description  String
+  price        Float
+  location     String
+  type         String
+  propertyType String
+  bedrooms     Int
+  bathrooms    Int
+  area         Float
+  images       String[]
+  amenities    String[]
+  featured     Boolean  @default(false)
+  videoUrl     String?
+  floorPlan    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@map("properties")
 }
-// Add this model to your existing schema.prisma file
+
 model PropertySubmission {
   id            String   @id @default(cuid())
   ownerName     String
@@ -45,18 +39,15 @@ model PropertySubmission {
   propertyTitle String
   description   String
   location      String
-  type          String   // "sale" or "rent"
-  propertyType  String   // "apartment", "villa", "house", "commercial", "land", "penthouse", "studio", "duplex", "bungalow", "farmhouse", "beach house", "townhouse", "condominium", "office space", "retail space", "warehouse", "industrial"
+  type          String
+  propertyType  String
   bedrooms      Int
   bathrooms     Int
   area          Float
   price         Float
-  amenities     String[] // Array of amenity strings
-  
-  // Admin fields
-  status        String   @default("pending") // "pending", "approved", "rejected"
+  amenities     String[]
+  status        String   @default("pending")
   adminNotes    String?
-  
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

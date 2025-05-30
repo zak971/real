@@ -5,46 +5,46 @@ export const revalidate = 3600 // Revalidate every hour
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const page = parseInt(searchParams.get("page") || "1")
+    console.log("Fetching properties...")
+    console.log("Environment check:", {
+      hasDatabaseUrl: !!process.env.DATABASE_URL,
+      hasDirectUrl: !!process.env.DIRECT_URL,
+      nodeEnv: process.env.NODE_ENV
+    })
+
+    // Test database connection
+    try {
+      console.log("Attempting database connection...")
+      await db.$connect()
+      console.log("Database connection successful")
+    } catch (error) {
+      console.error("Database connection failed:", error)
+      return NextResponse.json({ 
+        error: "Database connection failed", 
+        details: error instanceof Error ? error.message : String(error)
+      }, { status: 500 })
+    }
+
+    const searchParams = request.nextUrl.searchParams
     const limit = parseInt(searchParams.get("limit") || "10")
+    const page = parseInt(searchParams.get("page") || "1")
     const type = searchParams.get("type")
-    const location = searchParams.get("location")
     const propertyType = searchParams.get("propertyType")
+    const location = searchParams.get("location")
     const minPrice = searchParams.get("minPrice")
     const maxPrice = searchParams.get("maxPrice")
     const bedrooms = searchParams.get("bedrooms")
     const featured = searchParams.get("featured")
 
-    const skip = (page - 1) * limit
-
     const where: any = {}
 
-    // Type filter
-    if (type && type !== "all") {
-      where.type = type
-    }
-
-    // Location filter
-    if (location && location !== "all") {
-      where.location = {
-        equals: location,
-        mode: 'insensitive'
-      }
-    }
-
-    // Property type filter
-    if (propertyType && propertyType !== "all") {
-      where.propertyType = propertyType
-    }
-
-    // Price range filter
-    if (minPrice && !isNaN(parseFloat(minPrice))) {
-      where.price = { ...where.price, gte: parseFloat(minPrice) }
-    }
-
-    if (maxPrice && !isNaN(parseFloat(maxPrice))) {
-      where.price = { ...where.price, lte: parseFloat(maxPrice) }
+    if (type) where.type = type
+    if (propertyType) where.propertyType = propertyType
+    if (location) where.location = { contains: location, mode: "insensitive" }
+    if (minPrice || maxPrice) {
+      where.price = {}
+      if (minPrice) where.price.gte = parseInt(minPrice)
+      if (maxPrice) where.price.lte = parseInt(maxPrice)
     }
 
     // Bedrooms filter
@@ -57,39 +57,25 @@ export async function GET(request: NextRequest) {
       where.featured = true
     }
 
+    console.log("Query parameters:", { limit, page, where })
+
     const [properties, total] = await Promise.all([
       db.property.findMany({
         where,
-        orderBy: [{ featured: "desc" }, { createdAt: "desc" }],
-        skip,
         take: limit,
-        select: {
-          id: true,
-          title: true,
-          price: true,
-          location: true,
-          type: true,
-          propertyType: true,
-          bedrooms: true,
-          bathrooms: true,
-          area: true,
-          images: true,
-          amenities: true,
-          featured: true,
-          createdAt: true,
-        },
+        skip: (page - 1) * limit,
+        orderBy: { createdAt: "desc" },
       }),
       db.property.count({ where }),
     ])
 
+    console.log(`Found ${properties.length} properties out of ${total} total`)
+
     const response = NextResponse.json({
       properties,
-      pagination: {
+      total,
         page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
-      },
+      totalPages: Math.ceil(total / limit),
     })
 
     // Add cache control headers
@@ -98,7 +84,12 @@ export async function GET(request: NextRequest) {
     return response
   } catch (error) {
     console.error("Error fetching properties:", error)
-    return NextResponse.json({ error: "Failed to fetch properties" }, { status: 500 })
+    return NextResponse.json({ 
+      error: "Failed to fetch properties",
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 })
+  } finally {
+    await db.$disconnect()
   }
 }
 

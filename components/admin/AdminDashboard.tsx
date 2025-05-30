@@ -86,19 +86,26 @@ export default function AdminDashboard() {
   const seedDatabase = async () => {
     try {
       setIsSeeding(true)
+      toast.info("Starting database seeding...")
+      
       const response = await fetch("/api/seed", {
         method: "POST",
+        headers: {
+          'Content-Type': 'application/json',
+        },
       })
 
+      const data = await response.json()
+
       if (!response.ok) {
-        throw new Error("Failed to seed database")
+        throw new Error(data.error || "Failed to seed database")
       }
 
       await fetchProperties()
       toast.success("Database seeded successfully!")
     } catch (error) {
       console.error("Error seeding database:", error)
-      toast.error("Failed to seed database")
+      toast.error(error instanceof Error ? error.message : "Failed to seed database")
     } finally {
       setIsSeeding(false)
     }
@@ -169,14 +176,14 @@ export default function AdminDashboard() {
               <Plus className="h-4 w-4 mr-2" />
               Add Property
             </Button>
-            <Button
-              onClick={handleLogout}
+          <Button
+            onClick={handleLogout}
               variant="outline"
               className="text-red-600 border-red-600 hover:bg-red-50"
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              Logout
-            </Button>
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Logout
+          </Button>
           </div>
         </div>
   

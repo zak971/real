@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox"
 import { Upload, X, Loader2 } from 'lucide-react'
 import { toast } from "sonner"
+import Image from "next/image"
 
 interface Property {
   id?: string
@@ -48,6 +49,7 @@ const locations = [
 export default function PropertyForm({ property, onSave, onCancel }: PropertyFormProps) {
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [uploadingFloorPlan, setUploadingFloorPlan] = useState(false)
   const [errors, setErrors] = useState<Partial<Record<keyof Property, string>>>({})
   const [formData, setFormData] = useState<Property>({
     title: "",
@@ -68,7 +70,20 @@ export default function PropertyForm({ property, onSave, onCancel }: PropertyFor
 
   useEffect(() => {
     if (property) {
-      setFormData(property)
+      setFormData({
+        ...property,
+        // Ensure all required fields have default values if they're undefined
+        type: property.type || "sale",
+        propertyType: property.propertyType || "apartment",
+        bedrooms: property.bedrooms || 1,
+        bathrooms: property.bathrooms || 1,
+        area: property.area || 0,
+        images: property.images || [],
+        amenities: property.amenities || [],
+        featured: property.featured || false,
+        videoUrl: property.videoUrl || "",
+        floorPlan: property.floorPlan || "",
+      })
     }
   }, [property])
 
@@ -127,6 +142,39 @@ export default function PropertyForm({ property, onSave, onCancel }: PropertyFor
       images: prev.images.filter((_, i) => i !== index),
     }))
     toast.success("Image removed")
+  }
+
+  const handleFloorPlanUpload = async (files: FileList) => {
+    if (files.length === 0) return
+    
+    setUploadingFloorPlan(true)
+    try {
+      const file = files[0] // Only take the first file
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("folder", "floor-plans")
+
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to upload floor plan")
+      }
+
+      const result = await response.json()
+      setFormData((prev) => ({
+        ...prev,
+        floorPlan: result.url,
+      }))
+      toast.success("Floor plan uploaded successfully")
+    } catch (error) {
+      console.error("Error uploading floor plan:", error)
+      toast.error("Failed to upload floor plan")
+    } finally {
+      setUploadingFloorPlan(false)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -211,7 +259,7 @@ export default function PropertyForm({ property, onSave, onCancel }: PropertyFor
                 <div>
                   <Label>Location *</Label>
                   <Select
-                    value={formData.location}
+                    value={formData.location || ""}
                     onValueChange={(value: string) => setFormData(prev => ({ ...prev, location: value }))}
                   >
                     <SelectTrigger className={errors.location ? "border-red-500" : ""}>
@@ -263,11 +311,11 @@ export default function PropertyForm({ property, onSave, onCancel }: PropertyFor
                 <div>
                   <Label>Property Type *</Label>
                   <Select
-                    value={formData.propertyType}
+                    value={formData.propertyType || ""}
                     onValueChange={(value: string) => setFormData(prev => ({ ...prev, propertyType: value }))}
                   >
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="Select Property Type" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="apartment">Apartment</SelectItem>
@@ -397,6 +445,60 @@ export default function PropertyForm({ property, onSave, onCancel }: PropertyFor
                 {errors.images && <p className="text-red-500 text-sm mt-1">{errors.images}</p>}
               </div>
 
+              {/* Floor Plan */}
+              <div>
+                <Label>Floor Plan (Optional)</Label>
+                <div className="mt-2">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => e.target.files && handleFloorPlanUpload(e.target.files)}
+                    className="hidden"
+                    id="floor-plan-upload"
+                    disabled={uploadingFloorPlan}
+                  />
+                  <label
+                    htmlFor="floor-plan-upload"
+                    className={`flex items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+                      uploadingFloorPlan ? "border-gray-300 bg-gray-50" : "border-gray-300 hover:border-gray-400"
+                    }`}
+                  >
+                    <div className="text-center">
+                      {uploadingFloorPlan ? (
+                        <>
+                          <Loader2 className="h-8 w-8 text-gray-400 mx-auto mb-2 animate-spin" />
+                          <p className="text-gray-600">Uploading...</p>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                          <p className="text-gray-600">Click to upload floor plan</p>
+                        </>
+                      )}
+                    </div>
+                  </label>
+                </div>
+                {formData.floorPlan && (
+                  <div className="mt-4">
+                    <div className="relative aspect-[4/3] w-full max-w-md mx-auto">
+                      <Image
+                        src={formData.floorPlan}
+                        alt="Floor plan preview"
+                        fill
+                        className="object-contain rounded-lg"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, floorPlan: undefined }))}
+                        className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Amenities */}
               <div>
                 <Label>Amenities</Label>
@@ -423,16 +525,6 @@ export default function PropertyForm({ property, onSave, onCancel }: PropertyFor
                     value={formData.videoUrl}
                     onChange={(e) => setFormData(prev => ({ ...prev, videoUrl: e.target.value }))}
                     placeholder="YouTube or Vimeo URL"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="floorPlan">Floor Plan URL (Optional)</Label>
-                  <Input
-                    id="floorPlan"
-                    value={formData.floorPlan}
-                    onChange={(e) => setFormData(prev => ({ ...prev, floorPlan: e.target.value }))}
-                    placeholder="Floor plan image URL"
                   />
                 </div>
               </div>
